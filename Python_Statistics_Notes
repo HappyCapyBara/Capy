@@ -1,0 +1,63 @@
+#Part 1 of Stats#
+import pandas as pd
+import numpy as np
+epa_data = pd.read_csv("c4_epa_air_quality.csv", index_col = 0)
+epa_data.head(20)
+epa_data.describe()
+epa_data['state_name'].describe()
+epa_data['aqi'].mean()
+epa_data['aqi'].median()
+a_data['aqi'].min()
+epa_data['aqi'].max()
+epa_data['aqi'].std()
+
+#Part 2 of Stats#
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as mpl
+import statsmodels.api as sm
+from scipy import stats as sp
+data = pd.read_csv("modified_c4_epa_air_quality.csv")
+data.head(10)
+data.shape()
+data['aqi_log'].hist();
+aqi_avg = data['aqi_log'].mean()
+print(aqi_avg)
+aqi_std =data['aqi_log'].std()
+print(aqi_std)
+aqi_low_1std = aqi_avg - 1*aqi_std
+aqi_high_1std = aqi_avg + 1*aqi_std
+print(aqi_low_1std,aqi_high_1std)
+aqi_std1_percent=((data['aqi_log']>=aqi_low_1std)&(data['aqi_log']<=aqi_high_1std)).mean()*100
+print(aqi_std1_percent)
+
+# Define variable for lower limit, 2 standard deviations below the mean.#
+aqi_low_2std = aqi_avg - 2*aqi_std
+# Define variable for upper limit, 2 standard deviations below the mean.#
+aqi_high_2std = aqi_avg + 2*aqi_std
+print(aqi_low_2std,aqi_high_2std)
+
+# Display the actual percentage of data that falls within 2 standard deviations of the mean.#
+aqi_std2_percent=((data['aqi_log']>=aqi_low_2std)&(data['aqi_log']<=aqi_high_2std)).mean()*100
+print(aqi_std2_percent)
+
+# Define variable for lower limit, 3 standard deviations below the mean.#
+aqi_low_3std = aqi_avg - 3*aqi_std
+
+ #Define variable for upper limit, 3 standard deviations above the mean.#
+aqi_high_3std = aqi_avg + 3*aqi_std
+print(aqi_low_3std,aqi_high_3std)
+
+# Display the actual percentage of data that falls within 3 standard deviations of the mean.#
+aqi_std3_percent=((data['aqi_log']>=aqi_low_3std)&(data['aqi_log']<=aqi_high_3std)).mean()*100
+print(aqi_std3_percent)
+
+# Compute the z-score for every aqi_log value, and add a column named z_score in the data to store those results.#
+data["z_score"] = sp.zscore(data["aqi_log"], ddof=1) 
+
+# Display the first 5 rows to ensure that the new column was added.#
+data.head(10)
+
+# Display data where `aqi_log` is above or below 3 standard deviations of the mean#
+aqi_std3_find = data[(data["z_score"]>3)|(data["z_score"]<-3)]
+print(aqi_std3_find)
