@@ -1,0 +1,54 @@
+#Aggregate all tables into one for 2024#
+CREATE TABLE `tokyo-vigil-451422-i4.cap_bike.bike_2024` AS
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.jan_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Feb_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Mar_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Apr_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.May_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Jun_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Jul_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Aug_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Sep_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Oct_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Nov_24`
+UNION ALL
+SELECT * FROM `tokyo-vigil-451422-i4.cap_bike.Dec_24`;
+
+#mean max min median table#
+CREATE `tokyo-vigil-451422-i4.agr_cap_bike.avg_min_max_mod` AS
+SELECT
+  start_date_without_time,
+  member_casual,
+  MIN(ride_length_minutes) AS min_ride_length_minutes,
+  MAX(ride_length_minutes) AS max_ride_length_minutes,
+  AVG(ride_length_minutes) AS avg_ride_length_minutes,
+  APPROX_QUANTILES(ride_length_minutes, 2)[OFFSET(1)] AS median_ride_length_minutes
+FROM
+  `tokyo-vigil-451422-i4.cap_bike.bike_2024`
+GROUP BY
+  start_date_without_time,
+  member_casual;
+
+#member and casual ride types#
+CREATE OR REPLACE TABLE `tokyo-vigil-451422-i4.agr_cap_bike.ride_type` AS
+SELECT
+  start_date_without_time,
+  member_casual,
+  rideable_type,
+  COUNT(*) AS ride_count
+FROM
+  `tokyo-vigil-451422-i4.cap_bike.bike_2024`
+GROUP BY
+  start_date_without_time,
+  member_casual,
+  rideable_type;
