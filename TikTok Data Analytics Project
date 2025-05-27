@@ -1,0 +1,65 @@
+#Tik Tok Project#
+# Import packages
+import pandas as pd
+import numpy as np
+# Load dataset into dataframe
+data = pd.read_csv("tiktok_dataset.csv")
+# Display and examine the first ten rows of the dataframe
+data.head(10)
+ # Get summary info
+data.info()
+# Get summary statistics
+data.describe()
+print(data['claim_status'].unique())
+claim_counts = data['claim_status'].value_counts()
+print(claim_counts)
+
+# Average view count of videos with "claim" status?
+claimed_videos = data[data['claim_status'] == 'claim']
+# Mean view count for 'claim' status
+mean_views = claimed_videos['video_view_count'].mean()
+# Median view count for 'claim' status
+median_views = claimed_videos['video_view_count'].median()
+print("Mean view count (claim):", mean_views)
+print("Median view count (claim):", median_views)
+
+# Average view count of videos with "opinion" status?
+opinion_videos = data[data['claim_status'] == 'opinion']
+# Mean view count for 'opnion' status
+opinion_mean_views = opinion_videos['video_view_count'].mean()
+# Median view count for 'opinion' status
+opinion_median_views = opinion_videos['video_view_count'].median()
+print("Mean view count (opinion):", opinion_mean_views)
+print("Median view count (opinion):", opinion_median_views)
+
+# Get counts for each group combination of claim status and author ban status
+claim_x_bans_counts = data.groupby(['claim_status', 'author_ban_status']).
+↪→size().reset_index(name='video_count')
+print(claim_x_bans_counts)
+
+# What's the median video share count of each author ban status?
+median_share_counts = data.groupby('author_ban_status')['video_share_count'].
+↪→median().reset_index()
+print(median_share_counts)
+
+ban_author_summary = data.groupby('author_ban_status')[[
+'video_view_count',
+'video_like_count',
+'video_share_count'
+]].agg(['count', 'mean', 'median'])
+print(ban_author_summary)
+
+# Create a likes_per_view column
+data['likes_per_view'] = data['video_like_count'] / data['video_view_count']
+# Create a comments_per_view column
+data['comments_per_view'] = data['video_comment_count'] /␣
+↪→data['video_view_count']
+# Create a shares_per_view column
+data['shares_per_view'] = data['video_share_count'] / data['video_view_count']
+
+ Group by claim_status and author_ban_status. Aggregate of count, mean, and␣
+↪→median of groups.
+engagement_stats = data.groupby(['claim_status',␣
+↪→'author_ban_status'])[['likes_per_view', 'comments_per_view',␣
+↪→'shares_per_view']].agg(['count', 'mean', 'median'])
+print(engagement_stats)
