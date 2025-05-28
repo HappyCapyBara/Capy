@@ -1,0 +1,244 @@
+import numpy as np
+import pandas as pd
+import platform
+import statsmodels
+print('Python version: ', platform.python_version())
+print('numpy version: ', np.__version__)
+print('pandas version: ', pd.__version__)
+print('statsmodels version: ', statsmodels.__version__)
+from sklearn.metrics import classification_report
+
+tt_data = pd.read_csv("tiktok_dataset.csv")
+tt_data.head()
+tt_data.shape
+tt_data.dtypes
+tt_data.info()
+tt_data.describe()
+
+# Check for missing values#
+tt_data.isna().sum()
+tt_data=tt_data.dropna(axis=0)
+tt_data.head(10)
+
+# Check for duplicates#
+tt_data.duplicated().sum()
+
+# Boxplot to visualize distribution of `video_duration_sec`#
+plt.figure(figsize=(6,2))
+plt.title('Outliers for video_duration_sec', fontsize=12)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+sns.boxplot(x=tt_data['video_duration_sec'])
+plt.show()
+
+#Boxplot to visualize distribution of `video_view_count`#
+plt.figure(figsize=(6,2))
+plt.title('Outliers for video_view_count', fontsize=12)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+sns.boxplot(x=tt_data['video_view_count'])
+plt.show()
+
+#Boxplot to visualize distribution of `video_like_count`#
+plt.figure(figsize=(6,2))
+plt.title('Outliers for video_like_count', fontsize=12)
+plt.xticks(fontsize=10)
+plt.yticks(fontsize=12)
+sns.boxplot(x=tt_data['video_like_count'])
+plt.show()
+
+# Check for and handle outliers for video_like_count#
+percentile25 = tt_data["video_like_count"].quantile(0.25)
+percentile75 = tt_data["video_like_count"].quantile(0.75)
+iqr = percentile75 - percentile25
+upper_limit = percentile75 + 1.5 * iqr
+tt_data.loc[tt_data["video_like_count"] > upper_limit, "video_like_count"] = upper_limit
+
+# Check for and handle outliers for video_comment_count#
+percentile25 = tt_data["video_comment_count"].quantile(0.25)
+percentile75 = tt_data["video_comment_count"].quantile(0.75)
+iqr = percentile75 - percentile25
+upper_limit = percentile75 + 1.5 * iqr
+tt_data.loc[tt_data["video_comment_count"] > upper_limit, "video_comment_count"] = upper_limit
+
+# Check class balance#
+tt_data["verified_status"].value_counts(normalize=True)
+
+# Identify data points from majority and minority classes#
+tt_data_majority = tt_data[tt_data["verified_status"] == "not verified"]
+tt_data_minority = tt_data[tt_data["verified_status"] == "verified"]
+
+# Upsample the minority class (which is "verified")#
+tt_data_minority_upsampled = resample(tt_data_minority,
+                                 replace=True,                 # to sample with replacement#
+                                 n_samples=len(tt_data_majority), # to match majority class#
+                                 random_state=0)               # to create reproducible results#
+
+# Combine majority class with upsampled minority class#
+tt_data_upsampled = pd.concat([tt_data_majority, tt_data_minority_upsampled]).reset_index(drop=True)
+
+# Display new class counts#
+tt_data_upsampled["verified_status"].value_counts()
+
+# Get the average `video_transcription_text` length for claims and the average `video_transcription_text` length for opinions#
+tt_data_upsampled[["verified_status", "video_transcription_text"]].groupby(by="verified_status")[["video_transcription_text"]].agg(func=lambda array: np.mean([len(text) for text in array.dropna()]))
+
+# Extract the length of each `video_transcription_text` and add this as a column to the dataframe#
+tt_data_upsampled["text_length"] = tt_data_upsampled["video_transcription_text"].apply(func=lambda text: len(text))
+tt_data_upsampled.head()
+
+# Visualize the distribution of `video_transcription_text` length for videos posted by verified accounts and videos posted by unverified accounts#
+sns.histplot(data=tt_data_upsampled, stat="count", multiple="stack", x="text_length", kde=False, palette="pastel", 
+             hue="verified_status", element="bars", legend=True)
+plt.title("Seaborn Stacked Histogram")
+plt.xlabel("video_transcription_text length (number of characters)")
+plt.ylabel("Count")
+plt.title("Distribution of video_transcription_text length for videos posted by verified accounts and videos posted by unverified accounts")
+plt.show()
+
+# Correlation matrix to help determine most correlated variables#
+tt_data_upsampled.corr(numeric_only=True)
+
+
+# Heatmap to visualize how correlated variables are#
+plt.figure(figsize=(8, 6))
+sns.heatmap(
+    tt_data_upsampled[["video_duration_sec", "claim_status", "author_ban_status", "video_view_count", 
+                    "video_like_count", "video_share_count", "video_download_count", "video_comment_count", "text_length"]]
+    .corr(numeric_only=True), 
+    annot=True, 
+    cmap="crest")
+plt.title("Heatmap of the dataset")
+plt.show()
+
+# Outcome variable y#
+y = tt_data_upsampled["verified_status"]
+
+# Features x#
+x = tt_data_upsampled[["video_duration_sec", "claim_status", "author_ban_status", "video_view_count", "video_share_count", "video_download_count", "video_comment_count"]]
+x.head(10)
+
+#Data split into training and testing sets#
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=0)
+
+# Shape of each training and testing set#
+x_train.shape, x_test.shape, y_train.shape, y_test.shape
+
+x_train.dtypes
+x_train['claim_status'].unique()
+x_train['author_ban_status'].unique()
+x_train_to_encode = x_train[['claim_status','author_ban_status']]
+x_train_to_encode.head()
+
+
+#Encoder 1 Hot/ Onehot#
+x_encoder = OneHotEncoder(drop='first', sparse_output=False)
+
+# Fit and transform the training features using the encoder#
+x_train_encoded = x_encoder.fit_transform(x_train_to_encode)
+
+# Get feature names from encoder#
+x_encoder.get_feature_names_out()
+x_train_encoded
+
+#Array into df#
+df_x_train_encoded = pd.DataFrame(data=x_train_encoded, columns=x_encoder.get_feature_names_out())
+df_x_train_encoded.head(10)
+x_train.drop(columns=['claim_status','author_ban_status']).head() 
+
+# Concatenate x_train and df_x_train_encoded to form the final dataframe for training data #
+x_train_final = pd.concat([x_train.drop(columns=['claim_status','author_ban_status']).reset_index(drop=True), df_x_train_encoded], axis=1)
+x_train_final.head(10)
+
+#repeating for y(outcome)#
+y_train.dtype
+y_train.unique()
+y_encoder = OneHotEncoder(drop='first', sparse_output=False)
+#    Adjusting the shape of `y_train` before passing into `.fit_transform()`, since it takes in 2D array
+#    Using `.ravel()` to flatten the array returned by `.fit_transform()`, so that it can be used later to train the model
+y_train_final = y_encoder.fit_transform(y_train.values.reshape(-1, 1)).ravel()
+y_train_final
+
+# Display the encoded training outcome variable
+y_train_final
+
+
+# Construct a logistic regression model and fit it to the training set#
+tt_log_clf = LogisticRegression(random_state=0, max_iter=800).fit(x_train_final, y_train_final)
+
+
+# Select the testing features that needs to be encoded#
+x_test_to_encode= x_test[['claim_status','author_ban_status']]
+x_test_to_encode.head()
+
+# Transform the testing features using the encoder#
+x_test_encoded= x_encoder.transform(x_test_to_encode)
+x_test_encoded
+
+
+# Place encoded testing features (which is currently an array) into a dataframe#
+df_x_test_encoded= pd.DataFrame(data=x_test_encoded, columns=x_encoder.get_feature_names_out())
+df_x_test_encoded.head()
+
+# Display first few rows of `X_test` with `claim_status` and `author_ban_status` columns dropped (since these features are being transformed to numeric)
+x_test.drop(columns=["claim_status", "author_ban_status"]).head()
+
+# Concatenate `X_test` and `X_test_encoded_df` to form the final dataframe for training data (`X_test_final`)
+# Note: Using `.reset_index(drop=True)` to reset the index in X_test after dropping `claim_status`, and `author_ban_status`,
+# so that the indices align with those in `X_test_encoded_df` and `test_count_df`
+x_test_final = pd.concat([x_test.drop(columns=["claim_status", "author_ban_status"]).reset_index(drop=True), df_x_test_encoded], axis=1)
+x_test_final.head()
+
+
+# Use the logistic regression model to get predictions on the encoded testing set#
+y_predict = tt_log_clf.predict(x_test_final)
+
+# Display the predictions on the encoded testing set
+y_predict
+
+# Display the true labels of the testing set
+y_test
+
+# Encode the testing outcome variable
+# Notes:
+#   - Adjusting the shape of `y_test` before passing into `.transform()`, since it takes in 2D array
+#   - Using `.ravel()` to flatten the array returned by `.transform()`, so that it can be used later to compare with predictions
+y_test_final = y_encoder.transform(y_test.values.reshape(-1, 1)).ravel()
+
+
+# Display the encoded testing outcome variable
+y_test_final
+
+# Get shape of each training and testing set
+x_train_final.shape, y_train_final.shape,x_test_final.shape, y_test_final.shape
+
+# Create a confusion matrix to visualize the results of the logistic regression model.
+# Compute values for confusion matrix
+tt_log_cm = confusion_matrix(y_test_final, y_predict, labels=tt_log_clf.classes_)
+
+# Create display of confusion matrix
+tt_log_disp = ConfusionMatrixDisplay(confusion_matrix=tt_log_cm, display_labels=tt_log_clf.classes_)
+
+# Plot confusion matrix
+tt_log_disp.plot()
+
+# Display plot
+plt.show()
+
+# Create a classification report
+TN= 2044
+FP= 2415
+FN= 725
+TP= 3758
+Precision= TP/(TP+FP)
+Recall= TP/(TP+FN)
+F1Score= 2*(Precision*Recall)/(Precision+Recall)
+Accuracy = (TP+TN)/(TP+FN+FP+TN)
+print(Precision, Recall, F1Score, Accuracy)
+
+#Alternative for multiplke categories#
+Target_labels = ["verified", "not verified"]
+print(classification_report(y_test_final, y_predict, target_names=target_labels))
+
+# Place into a DataFrame for readability
+pd.DataFrame(data={"Feature Name":tt_log_clf.feature_names_in_, "Model Coefficient":tt_log_clf.coef_[0]})
